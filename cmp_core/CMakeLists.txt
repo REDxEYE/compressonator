@@ -1,6 +1,15 @@
 cmake_minimum_required(VERSION 3.10)
+include(CheckCXXCompilerFlag)
 
 add_library(CMP_Core STATIC)
+
+option(CMP_CORE_ENABLE_SSE "Build SSE4 implementation" ON)
+option(CMP_CORE_ENABLE_AVX2 "Build AVX2 implementation" ON)
+option(CMP_CORE_ENABLE_AVX512 "Build AVX-512 implementation" ON)
+
+check_cxx_compiler_flag("-march=nehalem" CMP_HAS_MARCH_NEHALEM)
+check_cxx_compiler_flag("-march=haswell" CMP_HAS_MARCH_HASWELL)
+check_cxx_compiler_flag("-march=skylake-avx512" CMP_HAS_AVX512)
 
 target_sources(CMP_Core
     PRIVATE
@@ -66,42 +75,54 @@ set_target_properties(CMP_Core PROPERTIES FOLDER ${PROJECT_FOLDER_SDK_LIBS})
 
 # Core SIMD options
 
+if(CMP_CORE_ENABLE_SSE AND CMP_HAS_MARCH_NEHALEM)
 # SSE
-add_library(CMP_Core_SSE STATIC)
-target_sources(CMP_Core_SSE PRIVATE source/core_simd_sse.cpp)
-target_include_directories(CMP_Core_SSE PRIVATE source shaders)
+    add_library(CMP_Core_SSE STATIC)
+    target_sources(CMP_Core_SSE PRIVATE source/core_simd_sse.cpp)
+    target_include_directories(CMP_Core_SSE PRIVATE source shaders)
 
-if (UNIX)
-    target_compile_options(CMP_Core_SSE PRIVATE -march=nehalem)
+    if (UNIX)
+        target_compile_options(CMP_Core_SSE PRIVATE -march=nehalem)
+    endif()
+
+    set_target_properties(CMP_Core_SSE PROPERTIES FOLDER ${PROJECT_FOLDER_SDK_LIBS})
+    target_link_libraries(CMP_Core PRIVATE CMP_Core_SSE)
+    target_compile_definitions(CMP_Core PRIVATE CMP_CORE_HAS_SSE)
 endif()
 
-set_target_properties(CMP_Core_SSE PROPERTIES FOLDER ${PROJECT_FOLDER_SDK_LIBS})
-
+if(CMP_CORE_ENABLE_AVX2 AND CMP_HAS_MARCH_HASWELL)
 # AVX
-add_library(CMP_Core_AVX STATIC)
-target_sources(CMP_Core_AVX PRIVATE source/core_simd_avx.cpp)
-target_include_directories(CMP_Core_AVX PRIVATE source shaders)
+    add_library(CMP_Core_AVX STATIC)
+    target_sources(CMP_Core_AVX PRIVATE source/core_simd_avx.cpp)
+    target_include_directories(CMP_Core_AVX PRIVATE source shaders)
 
-if (WIN32)
-    target_compile_options(CMP_Core_AVX PRIVATE /arch:AVX2)
-else()
-    target_compile_options(CMP_Core_AVX PRIVATE -march=haswell)
+    if (WIN32)
+        target_compile_options(CMP_Core_AVX PRIVATE /arch:AVX2)
+    else()
+        target_compile_options(CMP_Core_AVX PRIVATE -march=haswell)
+    endif()
+
+    set_target_properties(CMP_Core_AVX PROPERTIES FOLDER ${PROJECT_FOLDER_SDK_LIBS})
+    target_link_libraries(CMP_Core PRIVATE CMP_Core_AVX)
+    target_compile_definitions(CMP_Core PRIVATE CMP_CORE_HAS_AVX)
+
 endif()
 
-set_target_properties(CMP_Core_AVX PROPERTIES FOLDER ${PROJECT_FOLDER_SDK_LIBS})
+if(CMP_CORE_ENABLE_AVX512 AND CMP_HAS_AVX512)
 
 # AVX-512
-add_library(CMP_Core_AVX512 STATIC)
-target_sources(CMP_Core_AVX512 PRIVATE source/core_simd_avx512.cpp)
-target_include_directories(CMP_Core_AVX512 PRIVATE source shaders)
+    add_library(CMP_Core_AVX512 STATIC)
+    target_sources(CMP_Core_AVX512 PRIVATE source/core_simd_avx512.cpp)
+    target_include_directories(CMP_Core_AVX512 PRIVATE source shaders)
 
-if (WIN32)
-    target_compile_options(CMP_Core_AVX512 PRIVATE /arch:AVX-512)
-else()
-    target_compile_options(CMP_Core_AVX512 PRIVATE -march=knl)
+    if (WIN32)
+        target_compile_options(CMP_Core_AVX512 PRIVATE /arch:AVX-512)
+    else()
+        target_compile_options(CMP_Core_AVX512 PRIVATE -march=skylake-avx512)
+    endif()
+
+    set_target_properties(CMP_Core_AVX512 PROPERTIES FOLDER ${PROJECT_FOLDER_SDK_LIBS})
+    target_link_libraries(CMP_Core PRIVATE CMP_Core_AVX512)
+    target_compile_definitions(CMP_Core PRIVATE CMP_CORE_HAS_AVX512)
+
 endif()
-
-set_target_properties(CMP_Core_AVX512 PROPERTIES FOLDER ${PROJECT_FOLDER_SDK_LIBS})
-
-# Link SIMD libraries to CMP_Core
-target_link_libraries(CMP_Core PRIVATE CMP_Core_SSE CMP_Core_AVX CMP_Core_AVX512)

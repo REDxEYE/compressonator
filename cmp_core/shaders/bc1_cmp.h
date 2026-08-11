@@ -108,20 +108,27 @@ CMP_STATIC bool bc1ToggleSIMD(CGU_INT newExtension)
         useAVX2   = newExtension == EXTENSION_AVX2;
         useSSE42  = newExtension == EXTENSION_SSE42;
     }
-
+#ifdef CMP_CORE_HAS_AVX512
     if (useAVX512 && IsAvailableAVX512(extensions))
     {
         cpu_bc1ComputeBestEndpoints = avx512_bc1ComputeBestEndpoints;
     }
-    else if (useAVX2 && IsAvailableAVX2(extensions))
+    else
+#endif
+#ifdef CMP_CORE_HAS_AVX
+        if (useAVX2 && IsAvailableAVX2(extensions))
     {
         cpu_bc1ComputeBestEndpoints = avx_bc1ComputeBestEndpoints;
     }
-    else if (useSSE42 && IsAvailableSSE4(extensions))
+    else
+#endif
+#ifdef CMP_CORE_HAS_SSE
+        if (useSSE42 && IsAvailableSSE4(extensions))
     {
         cpu_bc1ComputeBestEndpoints = sse_bc1ComputeBestEndpoints;
     }
     else
+#endif
     {
         cpu_bc1ComputeBestEndpoints = _cpu_bc1ComputeBestEndpoints;
     }
